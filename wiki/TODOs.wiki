@@ -1,0 +1,16 @@
+#labels Phase-Requirements,Phase-Design,Featured
+List of what we are working on
+
+= Introduction =
+
+`ThriftStore` is under development and we have some changes and additions in mind.  This is what we are working on.
+
+
+= Details =
+
+Client
+  * example client in python
+Server
+  * adding KFS as another backend File System
+IDL
+  * adding client ID as a parameter for opening file handles.  This will allow to change the caching of the open resources on the server side by client.  This is necessary if you are running multiple clients to the same backend and want to close the open resources on a per client basis.
