@@ -1,0 +1,281 @@
+﻿ThriftStore
+Access to Hadoop and Sector Distributed File Systems via Thrift
+README
+
+
+Introduction
+
+ThriftStore is a service providing a common client interface to multiple
+distributed files systems.  It uses Thrift and currently supports Hadoop and
+Sector.  The project page is code.google.com/p/thriftstore.  See
+ThriftStore-TR-09-03.pdf for more information.
+
+Release archives are named thriftstore-v<VER>-googlecode-<YYYYMMDD>.tar.gz.  The
+ThriftStore archive contains:
+
+    $ tar zxvf thriftstore-v0_5_4-googlecode-20090612.tar.gz
+    $ tree thriftstore
+
+    thriftstore/
+    .
+    |-- README
+    |-- ThriftStore-TR-09-03.pdf
+    |-- build.properties
+    |-- build.xml
+    |-- include
+    |   `-- stringutil.h
+    |-- lib
+    |   |-- commons-logging-1.0.4.jar
+    |   |-- commons-logging-api-1.0.4.jar
+    |   |-- libthrift.jar
+    |   `-- log4j-1.2.13.jar
+    `-- src
+        |-- DfsService.thrift
+        |-- cpp
+        |   |-- Makefile
+        |   |-- client
+        |   |   |-- Makefile
+        |   |   |-- copyFromLocalFile.cpp
+        |   |   |-- copyToLocalFile.cpp
+        |   |   |-- list.cpp
+        |   |   |-- mkdir.cpp
+        |   |   |-- readFile.cpp
+        |   |   |-- remove.cpp
+        |   |   |-- stat.cpp
+        |   |   `-- writeFile.cpp
+        |   `-- server
+        |       |-- Makefile
+        |       `-- SectorServer.cpp
+        `-- java	
+            |-- com
+            |   `-- opendatagroup
+            |       `-- dfsservice
+            |           |-- client
+            |           |   |-- DfsClient.java
+            |           |   `-- MkDir.java
+            |           `-- server
+            |               `-- DfsServer.java
+            |-- runClient.sh
+            `-- runServer.sh
+
+    12 directories, 27 files
+
+ThriftStore is also available from source control from the project site.  To
+anonymously check out the latest source, use
+
+    # Non-members may check out a read-only working copy anonymously over HTTP.
+    svn checkout http://thriftstore.googlecode.com/svn/trunk/ thriftstore-read-only
+
+
+Dependencies
+
+To compile / run, there are several dependencies that are required.
+
+    * Thrift - ThriftStore has been tested with Thrift version 20080411.
+    * Ant - ThriftStore uses Apache Ant for compiling and has been tested with
+      version 1.7.0.
+    * Java - ThriftStore has been tested with jdk1.6.
+    * Sector - ThriftStore has been tested with 1.22.
+    * Hadoop - ThriftStore has been tested with 0.18.3.
+    * Boost - ThriftStore has been tested with version 1.36 under Linux and 1.35
+      on Mac.
+    * The build process uses Checkstyle and Findbugs to generate reports.  These
+      are not necessary but it has been tested with:
+          + Findbugs - the build has been tested with 1.36.
+          + Checkstyle - the build has been tested with 5.0.
+
+
+Compiling
+
+A few jars are include in the package and source repository.  These are all in
+the lib directory.
+
+After installing all dependencies above, use the following steps to compile
+ThriftStore:
+
+  1. cd thriftstore/
+
+  2. Update build.properties:
+     * hadoop.dir - location of the Hadoop installation.
+     * hadoop.ver - version of Hadoop installed in above location.
+     * boost.linux - location of Boost libraries on a Linux installations. These
+       should have been installed as part of the Thrift dependencies.
+     * boost.mac - location of Boost libraries on an OSX installations. These
+       should have been installed as part of the Thrift dependencies.
+     * thrift.include - location of the Thrift include files.
+     * thrift.lib - location of the Thrift library files.
+     * sector.home - location of the Sector installation.
+
+  3. Update PATH to include the Thrift binary.
+     For example, if I have Thrift installed on my machine in /usr/local, then
+     I would run the following command (or add it to my .bashrc):
+  
+         $ export PATH=/usr/local/bin:$PATH
+
+  4. Compile the project by running the command:
+     
+         $ ant
+
+     This will create
+
+         build, dist, src/gen-cpp, src/gen-java
+
+     src/gen-java and src/gen-cpp are the home of the Thrift-generated source
+     files.  These get compiled and the binaries reside in build/.
+
+     build/ holds the compiled classes compiled from src and src/gen-*.
+
+     dist/ holds the jar containing the java class files.
+
+
+Running ThriftStore
+
+The following assumes that ThriftStore is installed in /opt/thriftstore, and
+that Hadoop and Sector are installed and running.  We will refer to
+/opt/thriftstore as ${THRIFTSTORE_HOME}.  If you experience problems installing
+Hadoop or Sector, please look at the documentation provided on their respective
+websites.
+
+Server
+
+    Running the ThriftStore Server with Sector:
+
+        $ cd ${THRIFTSTORE_HOME}/build/cpp/server
+
+        * Update LD_LIBRARY_PATH to include the location of the Thrift and
+          Sector libraries.  Assuming that Thrift is installed to /user/local/
+          and Sector is installed in /opt/codeblue2/
+
+        $ export LD_LIBRARY_PATH=/usr/local/lib:/opt/codeblue2/lib
+
+        * Copy the Sector master server security certificate to the ThriftStore
+          Sector server directory. The security certificate is required in order
+          to establish a secure connection to Sector:
+
+              $ cp /opt/codeblue2/conf/master_node.cert \
+                  ${THRIFTSTORE_HOME}/build/cpp/server
+
+         * Start the server:
+
+              $ ./SectorServer [-p <port>]
+
+              Use the optional -p argument to set the port that the server will
+              listen on. If executed without this option the server will use the
+              default port 9090.
+
+     Running the ThriftStore Server with Hadoop:
+
+         $ cd ${THRIFTSTORE_HOME}/build/java
+
+         * In runServer.sh, update the HADOOP_INSTALL value to point to the
+           Hadoop installation.  HADOOP_VER should also be set to the version of
+           Hadoop.  The default values are on lines 17-8.
+
+             17 HADOOP_VER=0.18.3
+             18 HADOOP_INSTALL=/opt/hadoop
+
+           The version should match the version in build.properties.  That was
+           the version that the code compiled against and this is the version it
+           will run against.
+
+         * Start the server:
+
+               $  ./runServer.sh [ <port> ]
+
+              Use the optional port argument to set the port that the server will
+              listen on. If executed without this option the server will use the
+              default port 9090.  The default value is declared in the code
+              (com.opendatagroup.dfsservice.server.DfsServer), where it can also
+              be changed.
+
+Client
+
+    Running the ThriftStore clients:
+
+    The following C++ example clients are included with the ThriftStore
+    distribution:
+
+        * copyFromLocalFile - Copy a file from the local file system to the
+          distributed file system.
+        * copyToLocalFile - Copy a file from the distributed file system to the
+          local file system.
+        * list - List files/directories in the distributed file system. This is
+          the equivalent of the 'ls' command.
+        * mkdir - Create a directory on the distributed file system.
+        * readFile - Read a file from the distributed file system.
+        * remove - Delete a file/directory from the distributed file system.
+        * stat - Return information on a file/dir in the distributed file
+          system.
+        * writeFile - Write a file to the distributed file system.
+
+    Each of these client examples will output a usage message when executed
+    without any arguments, eg:
+
+        $ cd ${THRIFTSTORE_HOME}/build/cpp/client
+        $ export LD_LIBRARY_PATH=/usr/local/lib
+        $ ./mkdir
+        usage: mkdir <Sector host> <Sector port> <path>
+
+    Note that the first two arguments to the C++ clients are the host and port
+    of the Sector master server, and are only used when running with Sector. If
+    running Hadoop, then dummy values can be passed for these arguments.
+
+    Example 1
+
+        The following is an example of running the 'mkdir' client:
+
+        Setup
+
+        $ cd ${THIRFTSTORE_HOME}/build/cpp/client
+
+        * Update LD_LIBRARY_PATH to include the location of the Thrift
+          library.  Assuming that Thrift is installed to /user/local/, you would
+          run
+
+            $ export LD_LIBRARY_PATH=/usr/local/lib
+
+
+        Run the client:
+
+        If my Sector master is running on 192.168.15.1 and using port 6000 and
+        I want to create a new directory called "testdir" on the Sector
+        File System, I would run:
+
+            $ ./mkdir 192.68.15.1 6000 tesdir
+
+
+    The following Java example clients are included with the TriftStore
+    distribution:
+
+        * DfsClient.java - Tests all of the File System commands.  This also has
+          tests that are expected to fail in order to demostrate how the API
+          works.  There are eight values that you can set to specificy local and
+          remote file and all of the tests will be able to run.
+        * MkDir.java - Create a directory on the distributed file system.  This
+          client is specifically coded to go against Sector.  A slight
+          modification will allow it to run against any file system behind
+          ThriftStore, but it is included this way to show cross language
+          communication.
+
+    You can specify which client to run in runClient.sh script.  This value is
+    declared in the script and cannot be specified on the command line.
+
+    On the command line, you must give the IP of the Thrift Server you want to
+    connect to.  Optionally, you can specify the port it is on.  If do not give
+    one, the default port specified in the client class is used.
+
+    Example 2.
+
+        The following is an example of running the 'DfsClient' client:
+
+        If the Thrift Server is running on 192.168.15.1 on port 9001 and I want
+        to run the DfsClient suites of tests, I would run:
+
+        $ cd ${THRIFTSTORE_HOME}/build/java/client
+        $ ./runClient.sh 192.168.15.1 9001
+
+    And 9001 will be used rather than the defult port of 9090.
+
+    Please see the javadocs (these are generated by the ant target "reports" or
+    "docs") for the values to update in the client code.  
+
