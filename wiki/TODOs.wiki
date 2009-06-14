@@ -9,7 +9,8 @@ List of what we are working on
 = Details =
 
 Client
-  * example client in python
+  * example client in pythonsisten with the use of -p for the Port
+  * make java and C+ clients con
 Server
   * adding KFS as another backend File System
 IDL
