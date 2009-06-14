@@ -326,7 +326,6 @@
         <mkdir dir="${reports.dir}"/>
         <checkstyle config="${checkstyle.home}/${checkstyle.rules}"
                     failOnViolation="false">
-
             <fileset dir="src/java" includes="**/*.java" />
             <formatter type="xml"
                        tofile="${reports.dir}/checkstyle_${ant.project.name}_report.xml"/>
@@ -343,7 +342,7 @@
                  author="true"
                  version="true"
                  use="true"
-                 windowtitle="DFS API">
+                 windowtitle="ThriftStore Java">
 
             <packageset dir="src/java"
                         defaultexcludes="yes">
@@ -356,7 +355,6 @@
             <group title="DFS Packages" packages="com.opendatagroup.dfsservice.*"/>
             <link offline="true" href="http://java.sun.com/javase/6/docs/api/"
                   packagelistLoc="/tmp"/>
-            <link href="http://developer.java.sun.com/developer/products/xml/docs/api/"/>
         </javadoc>
     </target>
 
