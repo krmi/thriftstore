@@ -9,10 +9,10 @@ List of what we are working on
 = Details =
 
 Client
-  * example client in pythonsisten with the use of -p for the Port
-  * make java and C+ clients consistent in how they handle ports and servers
+  * implement example clients in python
+  * make java and C++ clients consistent in how they handle ports and servers
 Server
-  * adding KFS as another backend File System
+  * add KFS as another backend File System
 IDL
   * adding client ID as a parameter for opening file handles.  This will allow to change the caching of the open resources on the server side by client.  This is necessary if you are running multiple clients to the same backend and want to close the open resources on a per client basis.
 Native Code
