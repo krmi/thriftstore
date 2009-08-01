@@ -17,3 +17,5 @@ IDL
   * adding client ID as a parameter for opening file handles.  This will allow to change the caching of the open resources on the server side by client.  This is necessary if you are running multiple clients to the same backend and want to close the open resources on a per client basis.
 Native Code
   * For comparison testing, we have created native code that performs the same calls as what is performed on the Thrift Server side, but that can be invoked directly.  This allows, for example, to isolate the overhead from Thrift when writing a large file the DFS.  We need to get these ready for release.
+Documentation
+  * Locality discussion and diagram
