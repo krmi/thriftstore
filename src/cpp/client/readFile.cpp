@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2008-2009  Open Data ("Open Data" refers to
+ * one or more of the following companies: Open Data Partners LLC,
+ * Open Data Research LLC, or Open Data Capital LLC.)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. 
+ */
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -61,7 +78,7 @@ int main(int argc, char** argv)
         char* src = argv[3];
         char* dst = argv[4];
 
-        client.open( dfsHandle, src, DfsServiceConstants().READ );
+        client.open( dfsHandle, cl, src, DfsServiceConstants().READ );
         if( dfsHandle.id < 0 ){
             cerr << "open file failed, return=" << dfsHandle.id << endl;
             exit( -1 );
@@ -71,11 +88,11 @@ int main(int argc, char** argv)
         
         string _ret;
         do {
-            client.read( _ret, dfsHandle, -1, 4096 );
+            client.read( _ret, cl, dfsHandle, -1, 4096 );
             ofs << _ret;
         } while( _ret.length() > 0 );
         
-        client.close( dfsHandle );
+        client.close( cl, dfsHandle );
         ofs.close();
     } catch( DfsServiceIOException &ex ) {
         printf( "Caught DfsServiceIOException: %s\n", ex.message.c_str() );

@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2008-2009  Open Data ("Open Data" refers to
+ * one or more of the following companies: Open Data Partners LLC,
+ * Open Data Research LLC, or Open Data Capital LLC.)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. 
+ */
 package com.opendatagroup.dfsservice.client;
 
 // start thrift-generated files
@@ -159,14 +176,14 @@ public class DfsClient
             server = args[0];
         } else {
             System.out.println( "You must pass in the Thrift Server IP" );
-            System.exit(1);
+            System.exit( 1 );
         }
 
         int port = DEFAULT_PORT;
         if ( args.length >= 2 && args[1] != null ) {
             try {
                 port = Integer.valueOf( args[1] );
-            } catch (NumberFormatException nfe ) {
+            } catch ( NumberFormatException nfe ) {
                 System.out.println( "Invalid port from runClient.sh = " +
                     args[1] + " using default value = " + DEFAULT_PORT  );
                 port = DEFAULT_PORT;
@@ -176,7 +193,7 @@ public class DfsClient
         try {
             // IP Address for the node where the Server is run, the port is used
             // in the call:
-            //   TServerTransport serverTransport = new TServerSocket(port);
+            //   TServerTransport serverTransport = new TServerSocket( port );
             // on the server side.
             TTransport transport = new TSocket( server, port );
             TProtocol protocol = new TBinaryProtocol( transport );
@@ -239,7 +256,7 @@ public class DfsClient
 
                 // TEST Copy a file on the DFS to local disk
                 try {
-                    System.out.println("starting copyToLocalFile");
+                    System.out.println( "starting copyToLocalFile" );
                     start = System.currentTimeMillis();
                     success = client.copyToLocalFile(
                         LOCAL_FILE_FOR_UPLOAD_DEST,
@@ -296,7 +313,7 @@ public class DfsClient
                     System.out.println( "  stopped: " + stop );
                     System.out.println( "  duration (sec): " + duration );
                 } catch ( DfsServiceIOException dsioe ) {
-                    System.out.println("Client caught Exception for 'mkdir'" );
+                    System.out.println( "Client caught Exception for 'mkdir'" );
                     dsioe.printStackTrace();
                 }
                 System.out.println( "\n" );
@@ -312,7 +329,7 @@ public class DfsClient
 
                     System.out.println(
                         "  Call to listFiles for a direcotry should succeed." );
-                    System.out.println("  The result for list files is: " );
+                    System.out.println( "  The result for list files is: " );
                     for ( FileStatus s : ls ) {
                         System.out.println( "  " + s );
                     }
@@ -358,7 +375,7 @@ public class DfsClient
                     System.out.println(
                         "  listFiles should throw an exception or fail." );
                     start = System.currentTimeMillis(); 
-                    List<FileStatus> ls = client.listFiles(chandle, BASE_DIR +
+                    List<FileStatus> ls = client.listFiles( chandle, BASE_DIR +
                         "/does_not_exist" );
                     stop = System.currentTimeMillis();
                     duration = ( stop - start ) / 1000;
@@ -383,7 +400,7 @@ public class DfsClient
                 try {
                     System.out.println( "starting stat on a directory" );
                     start = System.currentTimeMillis(); 
-                    FileStatus st = client.stat(chandle, DFS_WORKING_DIR );
+                    FileStatus st = client.stat( chandle, DFS_WORKING_DIR );
                     stop = System.currentTimeMillis();
                     duration = ( stop - start ) / 1000;
 
@@ -404,7 +421,7 @@ public class DfsClient
                 try {
                     System.out.println( "starting stat on a file" );
                     start = System.currentTimeMillis(); 
-                    FileStatus st = client.stat(chandle, DFS_FILE_MOVED );
+                    FileStatus st = client.stat( chandle, DFS_FILE_MOVED );
                     stop = System.currentTimeMillis();
                     duration = ( stop - start ) / 1000;
 
@@ -428,7 +445,7 @@ public class DfsClient
                     System.out.println(
                         "  Call to stat should throw an exception" );
                     start = System.currentTimeMillis(); 
-                    FileStatus st = client.stat(chandle,
+                    FileStatus st = client.stat( chandle,
                         DFS_FILE_MOVED + ".nothere" );
 
                     stop = System.currentTimeMillis();
@@ -452,7 +469,7 @@ public class DfsClient
                     // NESTED TEST open a file for READ
                     System.out.println( "starting open" );
                     start = System.currentTimeMillis(); 
-                    DfsHandle handle = client.open( DFS_FILE_MOVED,
+                    DfsHandle handle = client.open( chandle, DFS_FILE_MOVED,
                         new Constants().READ);
 
                     stop = System.currentTimeMillis();
@@ -470,7 +487,7 @@ public class DfsClient
                     // NESTED TEST close an opend file
                     System.out.println( "starting close file" );
                     start = System.currentTimeMillis(); 
-                    success = client.close(handle);
+                    success = client.close( chandle, handle) ;
                     stop = System.currentTimeMillis();
                     duration = ( stop - start ) / 1000;
 
@@ -485,7 +502,7 @@ public class DfsClient
                     // NESTED TEST close on a closed file.
                     System.out.println( "starting close (on a closed) file" );
                     start = System.currentTimeMillis(); 
-                    success = client.close( handle );
+                    success = client.close( chandle, handle );
                     stop = System.currentTimeMillis();
                     duration = ( stop - start ) / 1000;
 
@@ -502,8 +519,8 @@ public class DfsClient
                         "  Call to open should throw an exception." );
                     start = System.currentTimeMillis(); 
                     try {
-                        handle = client.open( DFS_FILE_MOVED + ".error",
-                            new Constants().READ);
+                        handle = client.open( chandle,
+                            DFS_FILE_MOVED + ".error", new Constants().READ);
                         stop = System.currentTimeMillis();
                         duration = ( stop - start ) / 1000;
 
@@ -524,7 +541,7 @@ public class DfsClient
                         "starting open (existing) file for write" );
                     start = System.currentTimeMillis(); 
                     try {
-                        handle = client.open( DFS_FILE_MOVED,
+                        handle = client.open( chandle, DFS_FILE_MOVED,
                             new Constants().WRITE);
                         stop = System.currentTimeMillis();
                         duration = ( stop - start ) / 1000;
@@ -560,7 +577,7 @@ public class DfsClient
                     System.out.println(
                         "starting open for read file ( < bytes than buffer)" );
                     start = System.currentTimeMillis(); 
-                    DfsHandle handle = client.open( DFS_FILE_MOVED,
+                    DfsHandle handle = client.open( chandle, DFS_FILE_MOVED,
                         new Constants().READ );
                     stop = System.currentTimeMillis();
                     duration = ( stop - start ) / 1000;
@@ -574,7 +591,8 @@ public class DfsClient
 
                     System.out.println( "starting read file" );
                     start = System.currentTimeMillis(); 
-                    String whatIread = client.read( handle, 10L, 1000L );
+                    String whatIread = client.read( chandle, handle, 10L,
+                        1000L );
                     stop = System.currentTimeMillis();
                     duration = ( stop - start ) / 1000;
 
@@ -586,7 +604,7 @@ public class DfsClient
                     System.out.println( "  duration (sec): " + duration );
 
                     System.out.println( "Closing file handle" );
-                    success = client.close( handle );
+                    success = client.close( chandle, handle );
                     System.out.println( "This call should succeed." );
                     System.out.println( "The result for close is " + success );
                 } catch ( DfsServiceIOException dsioe ) {
@@ -601,7 +619,7 @@ public class DfsClient
                 try {
                     System.out.println( "starting open for read file" );
                     start = System.currentTimeMillis(); 
-                    DfsHandle handle = client.open( DFS_FILE_MOVED,
+                    DfsHandle handle = client.open( chandle, DFS_FILE_MOVED,
                         new Constants().READ );
                     stop = System.currentTimeMillis();
                     duration = ( stop - start ) / 1000;
@@ -622,7 +640,7 @@ public class DfsClient
                     try {
                         fstream =
                             new FileWriter( DFS_READ_LOCAL_WRITE_DEST, true );
-                        out = new BufferedWriter(fstream);
+                        out = new BufferedWriter( fstream );
 
                         long off = 0L;
                         int bytesRead = 0;
@@ -630,28 +648,28 @@ public class DfsClient
                         long bufsize = 4096L;
 
                         do {
-                            in = client.read(handle, off, bufsize);
-                            if (in != null) {
+                            in = client.read( chandle, handle, off, bufsize );
+                            if ( in != null ) {
                                 bytesRead = in.length();
-                                out.write(in);
+                                out.write( in );
                                 off += bufsize;
                             }
-                        } while (bytesRead == bufsize
+                        } while ( bytesRead == bufsize
                             && in != null && in != "");
 
-                    } catch (IOException ioe) {
+                    } catch ( IOException ioe ) {
                         System.out.println( ioe.getMessage() );
                         ioe.printStackTrace();
-                    } catch (DfsServiceIOException dsioe) {
+                    } catch ( DfsServiceIOException dsioe ) {
                         System.out.println(
                             "Client caught Exception for 'read'" );
                         dsioe.printStackTrace();
                     } finally {
                         try {
-                            if (out != null) {
+                            if ( out != null ) {
                                 out.close();
                             }
-                        } catch (IOException ioe) {
+                        } catch ( IOException ioe ) {
                             System.out.println(
                                 "Ignoring Exception while closing file: " + 
                                     ioe.getMessage() );
@@ -668,7 +686,7 @@ public class DfsClient
 
                     // Close the DFS file handle
                     System.out.println( "Closing file handle" );
-                    success = client.close( handle );
+                    success = client.close( chandle, handle );
                     System.out.println( "  This call should succeed." );
                     System.out.println( "  The result for close is " + success );
                 } catch ( DfsServiceIOException dsioe ) {
@@ -684,7 +702,7 @@ public class DfsClient
                     // Open a file for writing
                     System.out.println( "starting open for write" );
                     start = System.currentTimeMillis(); 
-                    DfsHandle handle = client.open( DFS_FILE_NEW_WRITE,
+                    DfsHandle handle = client.open( chandle, DFS_FILE_NEW_WRITE,
                         new Constants().WRITE );
                     stop = System.currentTimeMillis();
                     duration = ( stop - start ) / 1000;
@@ -711,12 +729,12 @@ public class DfsClient
                         int offset = 0;
                         int numRead = 0;
 
-                        while (success &&
-                            ( numRead=in.read(bytes, 0, size) ) >= 0 ) {
+                        while ( success &&
+                            ( numRead=in.read( bytes, 0, size ) ) >= 0 ) {
 
-                            success = client.write( handle , bytes,
-                                Long.valueOf("" + offset), Long.valueOf("" +
-                                     bytes.length));
+                            success = client.write( chandle, handle , bytes,
+                                Long.valueOf( "" + offset ), Long.valueOf( "" +
+                                     bytes.length ) );
                             offset += numRead;
                         }
                     } catch ( IndexOutOfBoundsException ioobe ) {
@@ -736,7 +754,7 @@ public class DfsClient
                         if ( in != null ) {
                             try {
                                 in.close();
-                            } catch  (IOException ioe ) {
+                            } catch  ( IOException ioe ) {
                                 System.out.println(
                                     "Ignoring Exception on in file close" );
                             }
@@ -815,12 +833,12 @@ public class DfsClient
                         stop = System.currentTimeMillis();
                         duration = ( stop - start ) / 1000;
 
-                        System.out.println("  This call should fail." );
-                        System.out.println("  The result for remove is " +
+                        System.out.println( "  This call should fail." );
+                        System.out.println( "  The result for remove is " +
                             success );
-                        System.out.println("  started: " + start );
-                        System.out.println("  stopped: " + stop );
-                        System.out.println("  duration (sec): " + duration );
+                        System.out.println( "  started: " + start );
+                        System.out.println( "  stopped: " + stop );
+                        System.out.println( "  duration (sec): " + duration );
                     } catch ( DfsServiceIOException dsioe ) {
                         System.out.println( "Caught expected exception " + 
                             dsioe.getMessage() );
@@ -852,6 +870,7 @@ public class DfsClient
             } finally {
                 client.logout( chandle );
                 client.closeClient( chandle );
+                // comment out if testing multiple clients
                 client.closeDfs();
             }
 

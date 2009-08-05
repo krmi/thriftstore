@@ -1,5 +1,22 @@
 #!/usr/local/bin/thrift --gen java --gen cpp
 
+# Copyright (C) 2008-2009  Open Data ("Open Data" refers to
+# one or more of the following companies: Open Data Partners LLC,
+# Open Data Research LLC, or Open Data Capital LLC.)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License. 
+ 
+
 // Thrift definition for an interface to mulitple Distributed File Systems -
 // e.g. Hadoop DFS, Sector, etc. This is intended to allow clients written in
 // any Thrift supported language to access any DFS with a server implementation.
@@ -115,12 +132,12 @@ bool remove( 1:ClientHandle clientHandle, 2:string path, 3:bool recursive  ) thr
 /**
  * Open a file. Mode is either READ or WRITE.
  */
-DfsHandle open( 1:string filename, 2:i16 mode ) throws ( 1:DfsServiceIOException ex ),
+DfsHandle open( 1:ClientHandle clientHandle, 2:string filename, 3:i16 mode ) throws ( 1:DfsServiceIOException ex ),
 
 /**
  * Close file.
  */
-bool close( 1:DfsHandle dfsHandle ) throws ( 1:DfsServiceIOException ex ),
+bool close( 1:ClientHandle clientHandle, 2:DfsHandle dfsHandle ) throws ( 1:DfsServiceIOException ex ),
 
 /**
  * Read data from file.
@@ -128,7 +145,7 @@ bool close( 1:DfsHandle dfsHandle ) throws ( 1:DfsServiceIOException ex ),
  * offset is file offset to start reading from.
  * len is length of data to read.
  */
-string read( 1:DfsHandle dfsHandle, 3:i64 offset, 4:i64 len ) throws ( 1:DfsServiceIOException ex ),
+string read( 1:ClientHandle clientHandle, 2:DfsHandle dfsHandle, 3:i64 offset, 4:i64 len ) throws ( 1:DfsServiceIOException ex ),
 
 /**
  * Write data to a file.
@@ -137,7 +154,7 @@ string read( 1:DfsHandle dfsHandle, 3:i64 offset, 4:i64 len ) throws ( 1:DfsServ
  * offset is file offset to begin writing to.
  * len is len of data being written.
  */
-bool write( 1:DfsHandle dfsHandle, 2:binary buf, 3:i64 offset, 4:i64 len ) throws ( 1:DfsServiceIOException ex ),
+bool write( 1: ClientHandle clientHandle, 2:DfsHandle dfsHandle, 3:binary buf, 4:i64 offset, 5:i64 len ) throws ( 1:DfsServiceIOException ex ),
 
 /**
  * Copy a file from the DFS to the local file system.

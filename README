@@ -46,7 +46,7 @@ ThriftStore archive contains:
         |   `-- server
         |       |-- Makefile
         |       `-- SectorServer.cpp
-        `-- java	
+        `-- java
             |-- com
             |   `-- opendatagroup
             |       `-- dfsservice
@@ -229,11 +229,10 @@ Client
         $ cd ${THIRFTSTORE_HOME}/build/cpp/client
 
         * Update LD_LIBRARY_PATH to include the location of the Thrift
-          library.  Assuming that Thrift is installed to /user/local/, you would
-          run
+          library.  Assuming that Thrift is installed to /user/local/, you
+          would run
 
             $ export LD_LIBRARY_PATH=/usr/local/lib
-
 
         Run the client:
 
