@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2008-2009  Open Data ("Open Data" refers to
+ * one or more of the following companies: Open Data Partners LLC,
+ * Open Data Research LLC, or Open Data Capital LLC.)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. 
+ */
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -62,7 +79,7 @@ int main(int argc, char** argv)
         }
 
         DfsHandle dfsHandle;
-        client.open( dfsHandle, argv[4], DfsServiceConstants().WRITE );
+        client.open( dfsHandle, cl, argv[4], DfsServiceConstants().WRITE );
         if( dfsHandle.id < 0 ){
             cerr << "open file failed, return=" << dfsHandle.id << endl;
             exit( -1 );
@@ -78,7 +95,7 @@ int main(int argc, char** argv)
         while( !in.eof() ) {
             in.read( buf, 4096 );
             string s( buf );
-            status = client.write( dfsHandle, s, -1, in.gcount() );
+            status = client.write( cl, dfsHandle, s, -1, in.gcount() );
             if( status < 0 ) {
                 cerr << "write failed, return=" << status << endl;
                 exit( -1 );
@@ -88,7 +105,7 @@ int main(int argc, char** argv)
         delete [] buf;
         
         in.close();
-        client.close( dfsHandle );
+        client.close( cl, dfsHandle );
     } catch( DfsServiceIOException &ex ) {
         printf( "Caught DfsServiceIOException: %s\n", ex.message.c_str() );
     } catch (TException &tx) {

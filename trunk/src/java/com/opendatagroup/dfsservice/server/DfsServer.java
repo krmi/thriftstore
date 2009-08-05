@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2008-2009  Open Data ("Open Data" refers to
+ * one or more of the following companies: Open Data Partners LLC,
+ * Open Data Research LLC, or Open Data Capital LLC.)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. 
+ */
 package com.opendatagroup.dfsservice.server;
 
 // start thrift-generated files
@@ -34,6 +51,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -77,6 +95,12 @@ public final class DfsServer
 
         // ** Private Data **
 
+        /**
+         * Used to generate a unique id for the clients that connect.  This is
+         * used in caching
+         */
+        private AtomicLong clientId;
+
         /** Used for the keys in the file handle map. */
         private AtomicLong along;
 
@@ -87,11 +111,12 @@ public final class DfsServer
         private String hdfs;
 
         /**
-         * Handle for the opened or created output and input streams, Object
-         * is the only common element in the two object heirarchies.
+         * Handle for the clients that have connected to the server.  The values
+         * for each mapped object is a map of file handles for the client.
          */
-        private ConcurrentHashMap<Long, Object> filehandles =
-            new ConcurrentHashMap<Long, Object>();
+        private ConcurrentHashMap<Long,
+            ConcurrentHashMap<Long, Object> > clienthandles =
+                new ConcurrentHashMap<Long, ConcurrentHashMap<Long, Object> >();
 
         /** The Configuration resource. */
         private Configuration config;
@@ -114,6 +139,12 @@ public final class DfsServer
                 new Path( HADOOP_DIR + "/conf/hadoop-default.xml" ) );
             config.addResource( 
                 new Path( HADOOP_DIR + "/conf/hadoop-site.xml" ) );
+
+            // client numbering starts at 1
+            clientId = new AtomicLong( 1L );
+
+            // file handle starts at something more random
+            along = new AtomicLong( System.currentTimeMillis() );
         }
 
 
@@ -138,8 +169,8 @@ public final class DfsServer
         {
             LOG.debug( "DfsServer call to init with uri=" + uri );
             ClientHandle result = new ClientHandle();
-            result.id=1L;
-            along = new AtomicLong( System.currentTimeMillis() );
+            result.id = clientId.getAndIncrement();
+
             if ( uri != null ) {
                 hdfs = config.get( "fs.default.name" );
                 if ( hdfs == null ) {
@@ -163,9 +194,11 @@ public final class DfsServer
         }
 
         /**
-         * Added for interoperability.  Invoking this method does not result in a
-         * call to the Hadoop application.  The user name and a hash of the
-         * password is logged before returning <code>true</code>.
+         * Added for interoperability.  Invoking this method does not result in
+         * a call to the Hadoop application.  The user name and a hash of the
+         * password is logged before returning <code>true</code>.  The Id of the
+         * ClientHandle is adde to the map so that it is ready for any attempts
+         * to open a file.
          *
          * @param chandle the client handle.  This is ignored by the method and
          * is included for interoperability.
@@ -178,6 +211,8 @@ public final class DfsServer
             final String password )
         {
             try {
+                clienthandles.put(chandle.id,
+                    new ConcurrentHashMap<Long, Object>()  );
                 LOG.debug( "DfsServer call to login with user=" + user
                     + " and password=" + hash( password ) );
             } catch ( NoSuchAlgorithmException nsae ) {
@@ -188,8 +223,8 @@ public final class DfsServer
         }
 
         /**
-         * Added for interoperability.  Invoking this method does not result is a
-         * call to the Hadoop application.
+         * Added for interoperability.  Invoking this method does not result is
+         * a call to the Hadoop application.
          *
          * @param chandle the client handle.  This is ignored by the method and
          * is included for interoperability.
@@ -203,18 +238,21 @@ public final class DfsServer
         }
 
         /**
-         * Added for interoperability. Invoking this method does not result in a
-         * call to the Hadoop application.
+         * Closes filehandles associated with the client.  The client will no
+         * longer be able to open, read or write files without first logging out
+         * and then logging back in.
          *
-         * @param chandle the client handle.  This is ignored by the method and
-         * is included for interoperability.
+         * <p/> Invoking this method does not result in a call to the Hadoop
+         * application.
          *
-         * @return <code>true</code>.
+         * @param chandle the client handle to close.
+         *
+         * @return <code>true</code> if the client is successfully shutdown,
+         * <code>false</code> otherwise.
          */
         public boolean closeClient( ClientHandle chandle )
         {
-            LOG.debug( "DfsServer call to no-op closeClient" );
-            return true;
+            return closeClient( chandle.id );
         }
 
         /**
@@ -231,47 +269,22 @@ public final class DfsServer
         {
             LOG.debug( "DfsServer call to closeDfs" );
             boolean result = true;
-            try {
-                // close all active Streams
-                Collection streams = filehandles.values();
-                for ( Object obj : streams ) {
-                    if ( obj instanceof FSDataInputStream ) {
-                        FSDataInputStream in = ( FSDataInputStream )obj;
-                        try {
-                            in.close();
-                        } catch ( IOException ioe ) {
-                            LOG.error(
-                                "DfsServer.closeDfs: failure closing file, continuing",
-                                    ioe );
-                            result = false;
-                        }
-                    } else if ( obj instanceof FSDataOutputStream ) {
-                        FSDataOutputStream out = ( FSDataOutputStream )obj;
-                        try {
-                            out.close();
-                        } catch ( IOException ioe ) {
-                            LOG.error(
-                                "DfsServer.closeDfs: failure closing file, continuing",
-                                    ioe );
-                            result = false;
-                        }
-                    } else {
-                        obj = null;
-                        LOG.error(
-                            "DfsServer.closeDfs: unrecognized type, nulling the reference." );
-                        result = false;
-                    }
-                }
-                // close file system
-                fs.closeAll();
-            } catch ( IOException ioe ) {
-                LOG.error( "DfsServer.closeDfs: failure closing file systems.",
-                   ioe );
-                result = false;
-            } finally {
-                // drop all references
-                filehandles.clear();
+
+            Set<Long> keys = clienthandles.keySet();
+            for ( Long client : keys ) {
+                closeClient( client );
             }
+
+            // close file system
+            try {
+                fs.closeAll();
+            } catch( IOException ioe ) {
+                LOG.error(
+                    "DfsServer.closeDfs: cannot close backing Hadoop FS" );
+                result = false;
+            }
+            clienthandles.clear();
+
             return result;
         }
 
@@ -484,6 +497,8 @@ public final class DfsServer
          * is to completely overwrite an exisitng file, then first delete it
          * by a call to {@link #remove} and then call open with WRITEONLY mode.
          *
+         * @param chandle the ClientHandle for the client who wants to open the
+         * file.  The file handle will be associated with the ClientHandle id.
          * @param filename the name of the file to be opened and any path
          * value.  If the path is relative, it starts at the default / dir for
          * the Hadoop server.  This is usually
@@ -501,19 +516,26 @@ public final class DfsServer
          * be determined, <i>i.e.</i> an invalid value for <code>mode</code> is
          * passed in.
          */
-        public DfsHandle open( final String filename, final short mode )
+        public DfsHandle open( final ClientHandle chandle,
+            final String filename, final short mode )
             throws DfsServiceIOException
         {
-            LOG.debug( "DfsServer call to open with filename=" + filename +
-                " , mode=" + mode );
+            LOG.debug( "DfsServer call to open with ClientHandle=" + chandle.id
+                + " , filename=" + filename + " , mode=" + mode );
             DfsHandle handle = null;
             if ( mode == new Constants().READ ) {
                 try {
                     if ( fs.exists( new Path( filename ) ) ) {
                         FSDataInputStream in = fs.open( new Path( filename ) );
+
+                        ConcurrentHashMap<Long, Object> filehandles =
+                            clienthandles.get( chandle.id );
+
                         handle = new DfsHandle( along.getAndIncrement() );
+
                         filehandles.put(
                             Long.valueOf( handle.id ), ( Object )in );
+
                     } else {
                         LOG.error(
                             "DfsServer.open: could not find file to be opened, filename="
@@ -525,8 +547,8 @@ public final class DfsServer
                     LOG.error(
                         "DfsServer.open: error checking for existence or opening file="
                             + filename, ioe );
-                    throw new DfsServiceIOException( "Server-side IOException of "
-                        + ioe.getMessage() );
+                    throw new DfsServiceIOException(
+                         "Server-side IOException of " + ioe.getMessage() );
                 }
             } else if ( mode == new Constants().WRITE ) {
                 try {
@@ -534,12 +556,18 @@ public final class DfsServer
                         LOG.error(
                             "DfsServer.open: cannot open existing file for write. file="
                                 + filename );
-                        throw new DfsServiceIOException( "cannot open existing file for write. file="
-                            + filename );
+                        throw new DfsServiceIOException(
+                            "cannot open existing file for write. file="
+                                + filename );
                     } else {
                         FSDataOutputStream out  = fs.create(
                             new Path( filename ), false, BUFFER_SIZE );
+
+                        ConcurrentHashMap<Long, Object> filehandles =
+                            clienthandles.get( chandle.id );
+
                         handle = new DfsHandle( along.getAndIncrement() );
+
                         filehandles.put(
                             Long.valueOf( handle.id ), ( Object )out );
                     }
@@ -547,8 +575,8 @@ public final class DfsServer
                     LOG.error(
                         "DfsServer.open: error checking for existence or opening file="
                             + filename, ioe );
-                    throw new DfsServiceIOException( "Server-side IOException of "
-                        + ioe.getMessage() );
+                    throw new DfsServiceIOException(
+                        "Server-side IOException of " + ioe.getMessage() );
                 }
             } else {
                 LOG.error( "DfsServer.open: unknown mode=" + mode +
@@ -561,10 +589,13 @@ public final class DfsServer
 
         /**
          * Looks up the passed in Dfshandle and attempts to close the associated
-         * file.
+         * file.  The DfsHandle is not associated with the ClienetHandle, the
+         * close will not be allowed.
          *
          * @see #open
          *
+         * @param chandle the ClientHandle for the client that opened the file
+         * and now wants to close it.
          * @param handle the DfsHandle to the file that is going to be closed.
          * It must have be opened by a previous call to {@link #open}.
          *
@@ -575,11 +606,25 @@ public final class DfsServer
          * @throws DfsServiceIOException if a problem is encountered while
          * closing the file.
          */
-        public boolean close( final DfsHandle handle )
+        public boolean close( final ClientHandle chandle,
+            final DfsHandle handle )
             throws DfsServiceIOException
         {
             LOG.debug( "DfsServer call to close with handle.id=" + handle.id );
             boolean result = true;
+
+
+            ConcurrentHashMap<Long, Object> filehandles =
+                clienthandles.get( chandle.id );
+            if ( filehandles == null || filehandles.isEmpty() ) {
+                LOG.error( "DfsServer.close: file handle=" + handle.id +
+                    " not found in list of open files for client=" +
+                    chandle.id );
+                throw new DfsServiceIOException( "file handle=" + handle.id +
+                    " not found in list of open files for client=" +
+                    chandle.id );
+            }
+
             if ( filehandles.containsKey( Long.valueOf( handle.id ) ) ) {
                 Object fh = filehandles.remove( Long.valueOf( handle.id ) );
                 try {
@@ -612,10 +657,14 @@ public final class DfsServer
 
         /**
          * Reads <code>len</code> bytes from a file starting at position
-         * <code>offset</code> and returns the bytes as a String.
+         * <code>offset</code> and returns the bytes as a String.  The read will
+         * not take place if the passed in DfsHandle is not associated with the
+         * passed in ClientHandle.
          *
          * @see #open
          *
+         * @param chandle the ClientHandle for the client who opened the file
+         * and now wants to read it.
          * @param handle the DfsHandle to the file that is going to be read.
          * It must have be opened for reading by a previous call to
          * {@link #open}.
@@ -629,13 +678,28 @@ public final class DfsServer
          * @throws DfsServiceIOException if a problem is encountered reading the
          * file or if it cannot be found or opened for reading.
          */
-        public String read( final DfsHandle handle, final long offset,
-            final long len )
+        public String read( final ClientHandle chandle, final DfsHandle handle,
+            final long offset, final long len )
             throws DfsServiceIOException
         {
-            LOG.debug( "DfsServer call to read with handle.id=" + handle.id );
+            LOG.debug( "DfsServer call to read with client.id=" + chandle.id
+                + " , and handle.id=" + handle.id );
+
             byte[] buf = new byte[Long.valueOf( len ).intValue()];
             int bytesRead = 0;
+
+            ConcurrentHashMap<Long, Object> filehandles =
+                clienthandles.get( chandle.id );
+            if ( filehandles == null || filehandles.isEmpty() ) {
+                LOG.error(
+                    "DfsServer.read: no filehandles associated with client id="
+                        + chandle.id );
+
+                throw new DfsServiceIOException(
+                    "DfsServer.read: no filehandles associated with client id="
+                        + chandle.id );
+            }
+
             if ( filehandles.containsKey( Long.valueOf( handle.id ) ) ) {
                 Object fh = filehandles.get( Long.valueOf( handle.id ) );
                 try {
@@ -661,9 +725,10 @@ public final class DfsServer
             } else {
                 LOG.warn(
                     "DfsServer.read: could not find file handle=" +
-                        + handle.id );
+                        + handle.id + " for client.id=" + chandle.id );
                 throw new DfsServiceIOException(
-                    "Can't find handle for handle.id=" + handle.id );
+                    "Can't find handle for handle.id=" + handle.id +
+                        " for client.id=" + chandle.id );
             }
 
 
@@ -682,11 +747,14 @@ public final class DfsServer
          * has been written to a file, it has to be closed by a call to
          * {@link #close}.  If you open another handle to the file before
          * closing the first, the writes made with the first handle are not
-         * visable.
+         * visable.  If the passed in DfsHandle is not associated with the
+         * passed in ClientHandle, the write will not take place.
          *
          * @see #close
          * @see #open
          *
+         * @param chandle the ClientHandle for the client that opened the file
+         * and now wants to write to it.
          * @param handle the DfsHandle to the file to be written to.  It must
          * have been opened (created) for writing by a previous call to
          * {@link #open}.
@@ -707,13 +775,26 @@ public final class DfsServer
          * to {@link #open} or if the offset is greater than zero which is not
          * allowed since this file is newly created.
          */
-        public boolean write( final DfsHandle handle, final byte[] contents,
-            final long offset, final long len )
+        public boolean write( final ClientHandle chandle,
+            final DfsHandle handle, final byte[] contents, final long offset,
+            final long len )
             throws DfsServiceIOException
         {
 
             LOG.debug( "DfsServer call to write for file handle.id=" +
                 handle.id );
+
+            ConcurrentHashMap<Long, Object> filehandles =
+                clienthandles.get( chandle.id );
+            if ( filehandles == null || filehandles.isEmpty() ) {
+                LOG.error(
+                    "DfsServer.write: no filehandles associated with client id="
+                        + chandle.id );
+
+                throw new DfsServiceIOException(
+                    "DfsServer.write: no filehandles associated with client id="
+                        + chandle.id );
+            }
 
             boolean result = true;
             if ( filehandles.containsKey( Long.valueOf( handle.id ) ) ) {
@@ -738,7 +819,7 @@ public final class DfsServer
             } else {
                 LOG.warn(
                     "DfsServer.write: could not find handle to write " + 
-                        handle.id );
+                        handle.id + " for client.id=" + chandle.id );
                 result = false;
             }
 
@@ -806,8 +887,8 @@ public final class DfsServer
          * HDFS.  If this is a relative path, it starts from the directory where
          * the Thrift server was invoked.
          * @param dest the path on the HDFS that the file given in
-         * <code>localsrc</code> is to be copied to.  If this is a relative path,
-         * it starts at the default / dir for the Hadoop server.  This is
+         * <code>localsrc</code> is to be copied to.  If this is a relative
+         * path, it starts at the default / dir for the Hadoop server.  This is
          * usually <code>/user/&lt;HADOOP_USER&gt;/</code> and is not influenced
          * by the Thrift server or the user running it.
          *
@@ -858,8 +939,9 @@ public final class DfsServer
          * populated with values from the passed in
          * org.apache.hadoop.fs.FileStatus.
          */
-        private static com.opendatagroup.dfsservice.FileStatus convertToThriftFileStatus( 
-            final org.apache.hadoop.fs.FileStatus fs )
+        private static com.opendatagroup.dfsservice.FileStatus
+            convertToThriftFileStatus(
+                final org.apache.hadoop.fs.FileStatus fs )
         {
             return new com.opendatagroup.dfsservice.FileStatus( fs.getLen(),
                 fs.isDir(),
@@ -902,6 +984,76 @@ public final class DfsServer
                 out.append( highnibble ).append( lownibble );
             }
             return out.toString();
+        }
+
+
+        /**
+         * Closes filehandles associated with the client id.  The client will no
+         * longer be able to open, read or write files without first logging
+         * back in.
+         *
+         * <p/> Invoking this method does not result in a call to the Hadoop
+         * application.
+         *
+         * @param chandleId the id of the client handle to close.
+         *
+         * @return <code>true</code> if the client is successfully shutdown,
+         * <code>false</code> otherwise.
+         */
+        private boolean closeClient( Long chandleId )
+        {
+
+            LOG.debug( "DfsServer call to closeCient with client.id=" +
+                chandleId );
+
+            boolean result = true;
+
+            ConcurrentHashMap<Long, Object> filehandles =
+                clienthandles.get( chandleId );
+            if ( filehandles == null || filehandles.isEmpty() ) {
+                LOG.warn(
+                    "DfsServer.closeClient: no filehandles associated with client id="
+                        + chandleId );
+                return result;
+            }
+
+            try {
+                // close all active Streams
+                Collection streams = filehandles.values();
+                for ( Object obj : streams ) {
+                    if ( obj instanceof FSDataInputStream ) {
+                        FSDataInputStream in = ( FSDataInputStream )obj;
+                        try {
+                            in.close();
+                        } catch ( IOException ioe ) {
+                            LOG.error(
+                                "DfsServer.closeDfs: failure closing file, continuing",
+                                    ioe );
+                            result = false;
+                        }
+                    } else if ( obj instanceof FSDataOutputStream ) {
+                        FSDataOutputStream out = ( FSDataOutputStream )obj;
+                        try {
+                            out.close();
+                        } catch ( IOException ioe ) {
+                            LOG.error(
+                                "DfsServer.closeDfs: failure closing file, continuing",
+                                    ioe );
+                            result = false;
+                        }
+                    } else {
+                        obj = null;
+                        LOG.error(
+                            "DfsServer.closeDfs: unrecognized type, nulling the reference." );
+                        result = false;
+                    }
+                }
+            } finally {
+                filehandles.clear();
+                clienthandles.remove( chandleId );
+            }
+
+            return result;
         }
 
     }
